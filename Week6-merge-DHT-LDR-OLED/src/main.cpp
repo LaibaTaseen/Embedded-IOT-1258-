@@ -17,7 +17,7 @@
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 // --- DHT Sensor Setup ---
-DHT dht(DHTPIN, DHTTYPE);
+DHT dht(DHTPIN, DHTTYPE); 
 
 // --- Setup Function ---
 void setup() {
