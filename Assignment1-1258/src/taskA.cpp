@@ -8,141 +8,105 @@
 #define SCREEN_HEIGHT 64
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
-// --- Pin Definitions ---
+// --- Pin Setup ---
 #define LED1 23
 #define LED2 22
-#define LED3 4
-#define BTN1 18
-#define BTN2 19
+#define BTN_MODE 18   // Button 1 → Change mode
+#define BTN_RESET 19  // Button 2 → Reset to OFF
 #define BUZZER 13
 
 // --- Variables ---
-int mode = 0;
-unsigned long pressStart = 0;
-bool isPressed = false;
-const unsigned long LONG_PRESS_TIME = 1000; // 1 sec
+int mode = 0;                       // 0: OFF, 1: Alternate, 2: Both ON, 3: Fade
+unsigned long lastPress = 0;
+const int debounceDelay = 300;
 
-// --- Function Prototypes ---
-void changeMode();
-void displayMode();
-void buzz();
-void modeAction();
-
-void setup() {
-  // Initialize serial and display
-  Serial.begin(115200);
-  Wire.begin(21, 22); // SDA=21, SCL=22
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-    Serial.println(F("SSD1306 allocation failed"));
-    for (;;);
-  }
-  display.clearDisplay();
-  display.display();
-
-  // Pin setup
-  pinMode(LED1, OUTPUT);
-  pinMode(LED2, OUTPUT);
-  pinMode(LED3, OUTPUT);
-  pinMode(BUZZER, OUTPUT);
-  pinMode(BTN1, INPUT_PULLUP);
-  pinMode(BTN2, INPUT_PULLUP);
-
-  displayMode();
-}
-
-void loop() {
-  // --- Button 1 for changing modes ---
-  if (digitalRead(BTN1) == LOW && !isPressed) {
-    isPressed = true;
-    pressStart = millis();
-  }
-
-  if (digitalRead(BTN1) == HIGH && isPressed) {
-    unsigned long pressDuration = millis() - pressStart;
-    isPressed = false;
-    if (pressDuration < LONG_PRESS_TIME) {
-      // Short press → change mode
-      changeMode();
-    } else {
-      // Long press → reset mode
-      mode = 0;
-      displayMode();
-      buzz();
-    }
-  }
-
-  // --- Button 2 could be for special action ---
-  if (digitalRead(BTN2) == LOW) {
-    buzz();
-  }
-
-  // Perform LED pattern according to current mode
-  modeAction();
-}
-
-// --- Change Mode Function ---
-void changeMode() {
-  mode = (mode + 1) % 4; // 4 modes (0–3)
-  displayMode();
-  buzz();
-}
-
-// --- Display Current Mode on OLED ---
-void displayMode() {
-  display.clearDisplay();
-  display.setTextSize(2);
-  display.setTextColor(SSD1306_WHITE);
-  display.setCursor(10, 20);
-  display.print("Mode: ");
-  display.print(mode);
-  display.display();
-}
-
-// --- Buzzer Feedback ---
-void buzz() {
+// --- Function: short beep for feedback ---
+void beep() {
   digitalWrite(BUZZER, HIGH);
   delay(100);
   digitalWrite(BUZZER, LOW);
 }
 
-// --- LED Patterns for Each Mode ---
-void modeAction() {
+// --- OLED display function ---
+void showMode(String text) {
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(10, 30);
+  display.println(text);
+  display.display();
+}
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin(21, 22); // SDA=21, SCL=22
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println(F("OLED init failed"));
+    while (true);
+  }
+
+  pinMode(LED1, OUTPUT);
+  pinMode(LED2, OUTPUT);
+  pinMode(BUZZER, OUTPUT);
+  pinMode(BTN_MODE, INPUT_PULLUP);
+  pinMode(BTN_RESET, INPUT_PULLUP);
+
+  showMode("Mode 0: Both OFF");
+}
+
+void loop() {
+  // --- Mode Change Button ---
+  if (digitalRead(BTN_MODE) == LOW && millis() - lastPress > debounceDelay) {
+    mode = (mode + 1) % 4; // Cycle through 4 modes
+    lastPress = millis();
+    beep(); // short buzzer feedback
+  }
+
+  // --- Reset Button ---
+  if (digitalRead(BTN_RESET) == LOW) {
+    mode = 0; // Go back to OFF mode
+    beep();   // feedback
+  }
+
+  // --- LED Behavior ---
   switch (mode) {
-    case 0: // All OFF
+    case 0: // Both OFF
       digitalWrite(LED1, LOW);
       digitalWrite(LED2, LOW);
-      digitalWrite(LED3, LOW);
+      digitalWrite(BUZZER, LOW);
+      showMode("Mode 0: Both OFF");
       break;
 
-    case 1: // Blink All
-      digitalWrite(LED1, HIGH);
-      digitalWrite(LED2, HIGH);
-      digitalWrite(LED3, HIGH);
-      delay(300);
-      digitalWrite(LED1, LOW);
-      digitalWrite(LED2, LOW);
-      digitalWrite(LED3, LOW);
-      delay(300);
-      break;
-
-    case 2: // Chase Pattern
-      digitalWrite(LED1, HIGH); delay(200);
-      digitalWrite(LED1, LOW);
-      digitalWrite(LED2, HIGH); delay(200);
-      digitalWrite(LED2, LOW);
-      digitalWrite(LED3, HIGH); delay(200);
-      digitalWrite(LED3, LOW);
-      break;
-
-    case 3: // Alternate
+    case 1: // Alternate blink
+      showMode("Mode 1: Alternate");
       digitalWrite(LED1, HIGH);
       digitalWrite(LED2, LOW);
-      digitalWrite(LED3, HIGH);
       delay(300);
       digitalWrite(LED1, LOW);
       digitalWrite(LED2, HIGH);
-      digitalWrite(LED3, LOW);
       delay(300);
+      break;
+
+    case 2: // Both ON + Buzzer ON
+      showMode("Mode 2: Both ON");
+      digitalWrite(LED1, HIGH);
+      digitalWrite(LED2, HIGH);
+      digitalWrite(BUZZER, HIGH);
+      break;
+
+    case 3: // PWM fade
+      showMode("Mode 3: Fade");
+      digitalWrite(BUZZER, LOW);
+      for (int i = 0; i <= 255; i++) {
+        analogWrite(LED1, i);
+        analogWrite(LED2, 255 - i);
+        delay(5);
+      }
+      for (int i = 255; i >= 0; i--) {
+        analogWrite(LED1, i);
+        analogWrite(LED2, 255 - i);
+        delay(5);
+      }
       break;
   }
 }

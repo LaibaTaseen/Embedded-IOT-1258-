@@ -10,7 +10,7 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 // --- Pin Definitions ---
 #define BUTTON_PIN 18
-#define LED_PIN    23
+#define LED_PIN    4
 #define BUZZER_PIN 13
 
 // --- Variables ---
@@ -74,4 +74,4 @@ void loop() {
     }
   }
 }
-*/
+*/  
