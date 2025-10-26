@@ -50,4 +50,6 @@ OLED SCL	     22	         D22
 
 
 💻 Wokwi Project
-https://wokwi.com/projects/445581165646638081
+Task A:  https://wokwi.com/projects/445581165646638081
+Task B:  https://wokwi.com/projects/445868312274780161
+
