@@ -4,7 +4,7 @@ Servo servo;
 
 void setup() {
   servo.setPeriodHertz(50);
-  servo.attach(25);
+  servo.attach(14);
   servo.write(0);   // closed
   delay(1500);
 }
